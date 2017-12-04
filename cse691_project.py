@@ -2,11 +2,12 @@ import os
 from flask import Flask, request, redirect, url_for, flash, send_file, render_template
 from werkzeug.utils import secure_filename
 from transform_video import process_video
+from evaluate import ffwd_to_img
 
 UPLOAD_FOLDER = 'uploads'
 PROCESSED_FOLDER = 'static'
 CHECKPOINT_FOLDER = 'ckpt'
-IMAGE_EXTENSIONS = set(['png'])
+IMAGE_EXTENSIONS = set(['png', 'jpg', 'jpeg'])
 VIDEO_EXTENSIONS = set(['mp4'])
 ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
 
@@ -26,11 +27,14 @@ def process_file(filename, chk):
         os.path.dirname(os.path.abspath(__file__)), app.config['UPLOAD_FOLDER'], filename)
     abs_out_filename = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), app.config['PROCESSED_FOLDER'], filename)
+    abs_chk_filename = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), app.config['CHECKPOINT_FOLDER'], chk)
     if os.path.exists(abs_out_filename):
         os.remove(abs_out_filename)
     if allowed_file(filename, VIDEO_EXTENSIONS):
-        process_video(abs_in_filename, os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), app.config['CHECKPOINT_FOLDER'], chk), abs_out_filename)
+        process_video(abs_in_filename, abs_chk_filename, abs_out_filename)
+    if allowed_file(filename, IMAGE_EXTENSIONS):
+        ffwd_to_img(abs_in_filename, abs_out_filename, abs_chk_filename)
     return redirect('/static/'+filename)
 
 
