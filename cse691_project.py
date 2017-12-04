@@ -6,7 +6,9 @@ from transform_video import process_video
 UPLOAD_FOLDER = 'uploads'
 PROCESSED_FOLDER = 'static'
 CHECKPOINT_FOLDER = 'ckpt'
-ALLOWED_EXTENSIONS = set(['mp4', 'png'])
+IMAGE_EXTENSIONS = set(['png'])
+VIDEO_EXTENSIONS = set(['mp4'])
+ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -14,9 +16,9 @@ app.config['PROCESSED_FOLDER'] = PROCESSED_FOLDER
 app.config['CHECKPOINT_FOLDER'] = CHECKPOINT_FOLDER
 
 
-def allowed_file(filename):
+def allowed_file(filename, extensions):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+           filename.rsplit('.', 1)[1].lower() in extensions
 
 
 def process_file(filename, chk):
@@ -24,8 +26,11 @@ def process_file(filename, chk):
         os.path.dirname(os.path.abspath(__file__)), app.config['UPLOAD_FOLDER'], filename)
     abs_out_filename = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), app.config['PROCESSED_FOLDER'], filename)
-    process_video(abs_in_filename, os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), app.config['CHECKPOINT_FOLDER'], chk), abs_out_filename)
+    if os.path.exists(abs_out_filename):
+        os.remove(abs_out_filename)
+    if allowed_file(filename, VIDEO_EXTENSIONS):
+        process_video(abs_in_filename, os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), app.config['CHECKPOINT_FOLDER'], chk), abs_out_filename)
     return redirect('/static/'+filename)
 
 
@@ -43,11 +48,13 @@ def upload_file():
         if file.filename == '':
             flash('No selected file')
             return redirect(request.url)
-        if file and allowed_file(file.filename):
+        if file and allowed_file(file.filename, ALLOWED_EXTENSIONS):
             filename = secure_filename(file.filename)
-            print(os.path.dirname(os.path.abspath(__file__)))
-            file.save(os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), app.config['UPLOAD_FOLDER'], filename))
+            path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), app.config['UPLOAD_FOLDER'], filename)
+            if os.path.exists(path):
+                os.remove(path)
+            file.save(path)
             return process_file(filename, chk)
 
     return render_template('index.html')
