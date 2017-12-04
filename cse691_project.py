@@ -1,15 +1,17 @@
 import os
-from flask import Flask, request, redirect, url_for, flash, send_file
+from flask import Flask, request, redirect, url_for, flash, send_file, render_template
 from werkzeug.utils import secure_filename
 from transform_video import process_video
 
 UPLOAD_FOLDER = 'uploads'
 PROCESSED_FOLDER = 'static'
-ALLOWED_EXTENSIONS = set(['mp4', 'jpg', 'jpeg'])
+CHECKPOINT_FOLDER = 'ckpt'
+ALLOWED_EXTENSIONS = set(['mp4', 'png'])
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PROCESSED_FOLDER'] = PROCESSED_FOLDER
+app.config['CHECKPOINT_FOLDER'] = CHECKPOINT_FOLDER
 
 
 def allowed_file(filename):
@@ -17,20 +19,20 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def process_file(filename):
+def process_file(filename, chk):
     abs_in_filename = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), app.config['UPLOAD_FOLDER'], filename)
     abs_out_filename = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), app.config['PROCESSED_FOLDER'], filename)
-    process_video(
-        abs_in_filename, '/Users/nagaprasad/Downloads/fast-style-transfer-master/examples/style/la_muse.ckpt',
-        abs_out_filename)
+    process_video(abs_in_filename, os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), app.config['CHECKPOINT_FOLDER'], chk), abs_out_filename)
     return redirect('/static/'+filename)
 
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
+        chk = request.form['transfer'] + '.ckpt'
         # check if the post request has the file part
         if 'file' not in request.files:
             flash('No file part')
@@ -46,17 +48,9 @@ def upload_file():
             print(os.path.dirname(os.path.abspath(__file__)))
             file.save(os.path.join(
                 os.path.dirname(os.path.abspath(__file__)), app.config['UPLOAD_FOLDER'], filename))
-            return process_file(filename)
+            return process_file(filename, chk)
 
-    return '''
-    <!doctype html>
-    <title>Upload new File</title>
-    <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data>
-      <p><input type=file name=file>
-         <input type=submit value=Upload>
-    </form>
-    '''
+    return render_template('index.html')
 
 
 if __name__ == '__main__':
